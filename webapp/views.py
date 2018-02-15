@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # universidad del Valle de Guatemala
 from __future__ import division
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 import registration.signals
@@ -26,41 +26,12 @@ sleep_time = 0.1
 loggedEmail = ""
 loggedPassword = ""
 
-def loginPage(request):
-	global loggedEmail
-	global loggedPassword
-	if(request.method == 'GET'):
-		return render(
-			request,
-			'webapp/login.html',
-			{
-				'userForm': UserForm()
-			}
-		)
-	else:
-		user = UserForm(request.POST)
-		if user.is_valid():
-			loggedEmail = user.cleaned_data['email']
-			loggedPassword = user.cleaned_data['password']
-			print("loggedEmail", loggedEmail)
-			print("loggedPassword", loggedPassword)
-
-			localEmails = list(dbclient.mailClient.emails.find({"RCPTTO": loggedEmail}))
-			print("localEmails", localEmails)
-
-			return render(
-				request,
-				'webapp/inbox.html',
-				{
-					'localEmails': localEmails
-				}
-			)
 
 def inboxPage(request):
 	global loggedEmail
 	global loggedPassword
 	if loggedEmail == "":
-		return loginPage
+		return redirect("loginPage")
 
 	# Aqui deberia ir el codigo de POP3, los correos que vengan del server guardarlos en mongo
 	pop3Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -164,11 +135,28 @@ def createEmailPage(request):
 		except:
 			smtpSocket.close()
 
+		return redirect("createEmailPage")
+
+def loginPage(request):
+	global loggedEmail
+	global loggedPassword
+	if(request.method == 'GET'):
 		return render(
-			request, 
-			'webapp/createEmail.html',
+			request,
+			'webapp/login.html',
 			{
-				'createEmailForm': EmailForm()
+				'userForm': UserForm()
 			}
 		)
+	else:
+		user = UserForm(request.POST)
+		if user.is_valid():
+			loggedEmail = user.cleaned_data['email']
+			loggedPassword = user.cleaned_data['password']
+			print("loggedEmail", loggedEmail)
+			print("loggedPassword", loggedPassword)
 
+			localEmails = list(dbclient.mailClient.emails.find({"RCPTTO": loggedEmail}))
+			print("localEmails", localEmails)
+
+			return redirect('inboxPage')
