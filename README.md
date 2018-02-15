@@ -1,1 +1,1 @@
-[![Build Status](https://semaphoreci.com/api/v1/bchangip/ratemyprofessor/branches/dev/badge.svg)](https://semaphoreci.com/bchangip/ratemyprofessor)
+# SMTP and POP3 server and client
