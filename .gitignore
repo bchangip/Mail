@@ -1,0 +1,4 @@
+*.pyc
+webapp/__pycache__/*
+ratemyprofessor/__pycache__/*
+webapp/migrations/__pycache__/*
