@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+
+{% block title %}Inbox{% endblock %}
+
+{% block content %}
+	<div class="container">
+		<div>
+			<h5 class="center-align">Bandeja de entrada</h5>
+		</div>
+
+		<div class='row'>
+			{% for email in localEmails %}
+				<div class='col s12'>
+					<div class="card">
+						<div class="card-content" style="background-color: #c5ddc7">
+							<div class='row'>
+								DE: {{ email.MAILFROM }}
+								<br /><br />
+								PARA: {{ email.RCPTTO }}
+								<br /><br />
+								CONTENIDO: {{ email.DATA }}
+							</div>
+						</div>
+					</div>
+				</div>
+			{% endfor %}
+		</div>
+	</div>
+{% endblock %}
+
+{% block readyScripts %}
+{% endblock %}

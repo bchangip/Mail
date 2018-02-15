@@ -1,0 +1,69 @@
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0"/>
+	<title>UVGmail {% block title %}{% endblock %}</title>
+
+	<!-- CSS  -->
+	<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+	<!-- Compiled and minified CSS -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.1/css/materialize.min.css">
+	<link rel="stylesheet" type="text/css" href="/static/style.css">
+</head>
+<body class="light-green lighten-5">
+	<div class="navbar-fixed">
+		<nav class="light-green lighten-1" role="navigation">
+			<div class="nav-wrapper container">
+				<a id="logo-container" href="/webapp/" class="brand-logo">UVGmail</a>
+				<!-- <ul class="right hide-on-med-and-down">
+					{% if user.is_authenticated %}
+						<li>Bienvenido {{user.username}}</li>
+						<li><a href="/accounts/logout/">Salir</a></li>
+					{% else %}
+						<li><a href="/accounts/login/">Ingresar</a></li>
+					{% endif %}
+				</ul> -->
+
+				<ul id="nav-mobile" class="side-nav fixed grey lighten-1" style="width: 90px; margin-top: 65px">
+					<li><a href="/webapp/inbox" style="height: 90px"><i class="material-icons large">inbox</i></a></li>
+					<li><a href="/webapp/email" style="height: 90px"><i class="material-icons large">fiber_new</i></a></li>
+				</ul>
+				<a href="#" data-activates="nav-mobile" class="button-collapse"><i class="material-icons">menu</i></a>
+			</div>
+		</nav>
+	</div>
+
+	<br><br>
+	<div>
+		{% block content %}{% endblock %}
+	</div>
+
+<!-- 	<footer class="page-footer orange">
+		<div class="container">
+			<div class="row">
+				<div class="col l12 s12">
+					RateMyProfessor 2017
+				</div>
+			</div>
+		</div>
+	</footer> -->
+
+
+	<!--  Scripts-->
+	<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+	<!-- Compiled and minified JavaScript -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.1/js/materialize.min.js"></script>
+
+	<script>
+		$(document).ready(function(){
+			// Initialize collapse button
+			$(".button-collapse").sideNav();
+			{% block readyScripts %}{% endblock %}
+		});
+	</script>
+
+	</body>
+</html>

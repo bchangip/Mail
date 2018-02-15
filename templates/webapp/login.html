@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% load staticfiles %}
+
+{% block title %}Enviar correo{% endblock %}
+
+{% block content %}
+	<div class="container">
+		<form method='POST' action=''>
+			{% csrf_token %}
+			{{ userForm }}
+			<input type="submit" value="Submit">
+		</form>
+	</div>
+{% endblock %}
+
+{% block readyScripts %}
+	$('select').material_select();
+{% endblock %}
