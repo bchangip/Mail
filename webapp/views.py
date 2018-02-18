@@ -13,7 +13,7 @@ from pymongo import MongoClient
 
 dbclient = MongoClient('localhost', 27017)
 
-SMTPHOST = "127.0.0.1"
+SMTPHOST = "localhost"
 SMTPPORT = 2407
 
 POP3HOST = SMTPHOST
@@ -36,27 +36,51 @@ def inboxPage(request):
 	# Aqui deberia ir el codigo de POP3, los correos que vengan del server guardarlos en mongo
 	pop3Socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	pop3Socket.connect((POP3HOST, POP3PORT))
-	data = pop3Socket.recv(1024)
+	data = pop3Socket.recv(1024).decode()
 	print('Received', repr(data))
 	pop3Socket.sendall(bytes(str("USER "+loggedEmail).encode()))
 	time.sleep(sleep_time)
-	data = pop3Socket.recv(1024)
+	data = pop3Socket.recv(1024).decode()
 	print('Received', repr(data))
 	pop3Socket.sendall(bytes(str("PASS "+loggedPassword).encode()))
 	time.sleep(sleep_time)
-	data = pop3Socket.recv(1024)
+	data = pop3Socket.recv(1024).decode()
 	print('Received', repr(data))
 	pop3Socket.sendall(bytes(str("LIST").encode()))
 	mailIndices = []
 	time.sleep(sleep_time)
-	data = pop3Socket.recv(1024)
-	while(data != b'.'):
-		mailIndices.append(data)
-		print('Received', repr(data))
-		data = pop3Socket.recv(1024)
-	print("Mail indices", mailIndices)
+	# data = pop3Socket.recv(1024)
+	# while(data != b'.'):
+	# 	mailIndices.append(data)
+	# 	print('Received', repr(data))
+	# 	data = pop3Socket.recv(1024)
+	# print("Mail indices", mailIndices)
+	newMails = []
+	while len(newMails) == 0 or (newMails[-1] != '.'):
+		newMails.extend(pop3Socket.recv(1024).decode().split("\r\n"))
+		if newMails[-1] == '':
+			newMails = newMails[:-1]
+		print("newMails", newMails)
+	# print("newMails", newMails)
+	newMails = newMails[1:-1]
+	print("newMails", newMails)
+	for newMail in newMails:
+		pop3Socket.sendall(bytes(str("RETR "+newMail).encode()))
+		newMailBuffer = []
+		while len(newMailBuffer) == 0 or (newMailBuffer[-1] != '.'):
+			newMailBuffer.extend(pop3Socket.recv(1024).decode().split("\r\n"))
+			if newMailBuffer[-1] == '':
+				newMailBuffer = newMailBuffer[:-1]
+		newMailBuffer = newMailBuffer[:-1]
+		newMailBuffer = "\n".join(newMailBuffer)
+		print("newMail", newMailBuffer)
+		dbclient.mailClient.emails.insert({"DATA": newMailBuffer})
 
-	localEmails = list(dbclient.mailClient.emails.find({"RCPTTO": loggedEmail}))
+		pop3Socket.sendall(bytes(str("DELE "+newMail).encode()))
+		response = pop3Socket.recv(1024).decode()
+		print("DELE response", response)
+	pop3Socket.sendall(bytes(str("QUIT").encode()))
+	localEmails = list(dbclient.mailClient.emails.find())
 	print("localEmails", localEmails)
 
 	return render(
