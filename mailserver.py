@@ -12,9 +12,9 @@ HOST = ""
 PORT = 25
 DOMAIN = "uvg.mail"
 
-heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
-mailFromMatch = re.compile('(^MAIL FROM: <[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
-rcptToMatch = re.compile('(^RCPT TO: <[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
+heloMatch = re.compile('^EHLO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
+mailFromMatch = re.compile('(^MAIL FROM:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
+rcptToMatch = re.compile('(^RCPT TO:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 dataMatch = re.compile('^DATA$')
 quitMatch = re.compile('^QUIT$')
 
@@ -61,6 +61,7 @@ def mailRequestHandler(conn, addr):
 		print("expectingMAILFROM", expectingMAILFROM)
 		matched = mailFromMatch.match(expectingMAILFROM)
 		if matched:
+			print("Correct")
 			conn.send("250 Ok\r\n".encode())
 			mailFrom = expectingMAILFROM.split(":")[1].rstrip()
 			mailFromPending = False
@@ -78,7 +79,7 @@ def mailRequestHandler(conn, addr):
 		matched = rcptToMatch.match(expectingRCPTTO)
 		if matched:
 			conn.send("250 Ok\r\n".encode())
-			recipients.append(expectingRCPTTO.split(":")[1][1:].rstrip()[1:-1])
+			recipients.append(expectingRCPTTO.split(":")[1].rstrip()[1:-1])
 			expectingRCPTTO = receiveOneLine(conn)
 			if (rcptToMatch.match(expectingRCPTTO) == None):
 				if (dataMatch.match(expectingRCPTTO) != None):
