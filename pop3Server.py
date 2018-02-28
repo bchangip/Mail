@@ -8,9 +8,12 @@ import socket
 import os
 import re
 import time
+import pprint
+from pymongo import MongoClient
 
 sleep_time = 0
 
+dbclient = MongoClient('localhost', 27017)
 
 HOST = ""
 PORT = 2408
@@ -25,7 +28,7 @@ quitMatch = re.compile('^QUIT$')
 
 def pop3RequestHandler(conn, addr):
 	print("Connected by", addr)
-	
+
 	# Connect phase
 	conn.send("OK POP3 server ready\r\n".encode())
 
@@ -33,13 +36,17 @@ def pop3RequestHandler(conn, addr):
 	userPending = True
 
 	while userPending:
-		expectingUSER = conn.recv(1024).strip()
-		matched = userMatch.match(expectingUSER)
-		if matched:
-			conn.send("OK User accepted\r\n".encode())
+		try:
+			expectingUSER = conn.recv(1024).strip()
 			user = expectingUSER.split(" ")[1].rstrip()
-			userPending = False
-		else:
+			matched = dbclient.mailServer.users.find_one({"user":user})
+			if (matched != None):
+				conn.send("OK User accepted\r\n".encode())
+				# user = expectingUSER.split(" ")[1].rstrip()
+				userPending = False
+			else:
+				conn.send("ERROR\r\n".encode())
+		except:
 			conn.send("ERROR\r\n".encode())
 
 
@@ -47,18 +54,22 @@ def pop3RequestHandler(conn, addr):
 	passPending = True
 
 	while passPending:
-		expectingPASS = conn.recv(1024).strip()
-		matched = passMatch.match(expectingPASS)
-		if matched:
-			conn.send("OK Pass accepted\r\n".encode())
+		try:
+			expectingPASS = conn.recv(1024).strip()
 			password = expectingPASS.split(" ")[1].rstrip()
-			passPending = False
-		else:
+			matched = dbclient.mailServer.users.find_one({"user":user})
+			if (matched['password'] == password):
+				conn.send("OK Pass accepted\r\n".encode())
+				# password = expectingPASS.split(" ")[1].rstrip()
+				passPending = False
+			else:
+				conn.send("ERROR\r\n".encode())
+		except:
 			conn.send("ERROR\r\n".encode())
 
 	# Program phase
 
-	while True:
+	while ((passPending == False) and (userPending == False)):
 		expectingCommand = conn.recv(1024).strip()
 		if quitMatch.match(expectingCommand):
 			conn.send("OK POP3 server signing off\r\n".encode())
