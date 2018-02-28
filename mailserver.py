@@ -11,11 +11,23 @@ import re
 HOST = ""
 PORT = 2407
 
-heloMatch = re.compile('^HELO \S*$')
+heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
 mailFromMatch = re.compile('(^MAIL FROM: <[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 rcptToMatch = re.compile('(^RCPT TO: <[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 dataMatch = re.compile('^DATA$')
 quitMatch = re.compile('^QUIT$')
+
+def receiveOneLine(conn):
+	message = ""
+	while "\r\n" not in message:
+		message += conn.recv(1024).decode()
+	return message.strip()
+
+def receiveMultiLine(conn):
+	message = ""
+	while "\r\n.\r\n" not in message:
+		message += conn.recv(1024).decode()
+	return message.split("\r\n")[:-2]
 
 
 def mailRequestHandler(conn, addr):
@@ -23,70 +35,65 @@ def mailRequestHandler(conn, addr):
 	# data = conn.recv(1024).strip()
 	
 	# Connect phase
-	conn.send("220 smtp.chan.com\n".encode())
+	conn.send("220 smtp.chan.com\r\n".encode())
 
 	# HELO phase
 	heloPending = True
 
 	while heloPending:
-		expectingHELO = conn.recv(1024).strip()
+		# expectingHELO = conn.recv(1024).strip()
+		expectingHELO = receiveOneLine(conn)
+		print("expectingHELO", expectingHELO)
 		matched = heloMatch.match(expectingHELO)
 		if matched:
-			conn.send("250 smtp.chan.com, I am glad to meet you\n".encode())
+			conn.send("250 smtp.chan.com, I am glad to meet you\r\n".encode())
 			sourceDomain = expectingHELO.split(" ")[1].rstrip()
 			heloPending = False
 		else:
-			conn.send("500 Syntax error\n".encode())
+			conn.send("500 Syntax error\r\n".encode())
 
 	# MAIL FROM phase
 	mailFromPending = True
 
 	while mailFromPending:
-		expectingMAILFROM = conn.recv(1024).strip()
+		expectingMAILFROM = receiveOneLine(conn)
 		print("expectingMAILFROM", expectingMAILFROM)
 		matched = mailFromMatch.match(expectingMAILFROM)
 		if matched:
-			conn.send("250 Ok\n".encode())
+			conn.send("250 Ok\r\n".encode())
 			mailFrom = expectingMAILFROM.split(":")[1].rstrip()
 			mailFromPending = False
 		else:
-			conn.send("500 Syntax error\n".encode())
+			conn.send("500 Syntax error\r\n".encode())
 
 
 	# RCPT TO phase
 	rcptToPending = True
 
-	expectingRCPTTO = conn.recv(1024).strip()
+	expectingRCPTTO = receiveOneLine(conn)
 
 	recipients = []
 	while rcptToPending:
 		matched = rcptToMatch.match(expectingRCPTTO)
 		if matched:
-			conn.send("250 Ok\n".encode())
+			conn.send("250 Ok\r\n".encode())
 			recipients.append(expectingRCPTTO.split(":")[1][1:].rstrip())
-			expectingRCPTTO = conn.recv(1024).strip()
+			expectingRCPTTO = receiveOneLine(conn)
 			if (rcptToMatch.match(expectingRCPTTO) == None):
 				if (dataMatch.match(expectingRCPTTO) != None):
 					expectingDATA = expectingRCPTTO
 					break
 		else:
-			conn.send("500 Syntax error\n".encode())
-			expectingRCPTTO = conn.recv(1024).strip()
+			conn.send("500 Syntax error\r\n".encode())
+			expectingRCPTTO = receiveOneLine(conn)
 
 
 	# DATA phase
-	conn.send("354 Go ahead, finish data with <CRLF>.<CRLF>\n".encode())
+	conn.send("354 Go ahead, finish data with <CRLF>.<CRLF>\r\n".encode())
 
-	currentData = ""
-	dataBuffer = []
-	while(currentData != "."):
-		currentData = conn.recv(1024).strip()
-		print("Appending",currentData)
-		dataBuffer.append(currentData)
+	dataBuffer = receiveMultiLine(conn)
 
-	dataBuffer = dataBuffer[:-1]
-
-	conn.send("250 Data completed\n".encode())
+	conn.send("250 Data completed\r\n".encode())
 
 	# QUIT phase
 	quitPending = True
@@ -95,10 +102,10 @@ def mailRequestHandler(conn, addr):
 		expectingQUIT = conn.recv(1024).strip()
 		matched = quitMatch.match(expectingQUIT)
 		if matched:
-			conn.send("221 Bye\n".encode())
+			conn.send("221 Bye\r\n".encode())
 			quitPending = False
 		else:
-			conn.send("500 Syntax error\n".encode())
+			conn.send("500 Syntax error\r\n".encode())
 
 	conn.close()
 
