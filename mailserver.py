@@ -9,7 +9,7 @@ import os
 import re
 
 HOST = ""
-PORT = 2407
+PORT = 25
 DOMAIN = "uvg.mail"
 
 heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
@@ -36,7 +36,7 @@ def mailRequestHandler(conn, addr):
 	# data = conn.recv(1024).strip()
 	
 	# Connect phase
-	conn.send("220 smtp.chan.com\r\n".encode())
+	conn.send("220 smtp.uvg.mail\r\n".encode())
 
 	# HELO phase
 	heloPending = True
@@ -136,43 +136,43 @@ def mailRequestHandler(conn, addr):
 		try:
 				smtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				smtpSocket.connect((serverIP, 25))
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
-				smtpSocket.sendall(bytes(str("HELO "+sourceDomain).encode()))
+				smtpSocket.sendall(bytes(str("HELO "+sourceDomain+"\r\n").encode()))
 				time.sleep(sleep_time)
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 
 				#MAIL FROM
-				command = "MAIL FROM: <" + mailFrom + ">"
+				command = "MAIL FROM: <" + mailFrom + ">\r\n"
 				# print (command)
-				smtpSocket.sendall(command.encode())
+				smtpSocket.sendall(bytes(command.encode()))
 				time.sleep(sleep_time)
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 				for mail in ownAccounts:
 					print (mail)
-					smtpSocket.sendall(("RCPT TO: <" + mail + ">").encode())
+					smtpSocket.sendall(bytes(("RCPT TO: <" + mail + ">\r\n").encode()))
 					time.sleep(sleep_time)
-					data = smtpSocket.recv(1024)
+					data = receiveOneLine(smtpSocket)
 					print('Received', repr(data))
 				#DATA
-				smtpSocket.sendall(b'DATA')
+				smtpSocket.sendall(b'DATA\r\n')
 				time.sleep(sleep_time)
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 				# Send message.
-				smtpSocket.sendall(content.encode())
+				smtpSocket.sendall(bytes((content+"\r\n").encode()))
 				time.sleep(sleep_time)
 				#. (Enviar .)
-				smtpSocket.sendall(b'.')
+				smtpSocket.sendall(bytes(".\r\n".encode()))
 				time.sleep(sleep_time)
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 				#QUIT
-				smtpSocket.sendall(b'QUIT')
+				smtpSocket.sendall(bytes("QUIT\r\n".encode()))
 				time.sleep(sleep_time)
-				data = smtpSocket.recv(1024)
+				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 				smtpSocket.close() # Este close no se si va a ser necesario, porque el server cierra la conexion
 		except:

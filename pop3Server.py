@@ -13,7 +13,7 @@ sleep_time = 0
 
 
 HOST = ""
-PORT = 2408
+PORT = 110
 
 userMatch = re.compile('^USER \S*$')
 passMatch = re.compile('^PASS \S*$')
@@ -34,6 +34,7 @@ def receiveOneLine(conn):
 	message = ""
 	while "\r\n" not in message:
 		message += conn.recv(1024).decode()
+	print("oneliner", message)
 	return message.strip()
 
 def receiveMultiLine(conn):

@@ -13,10 +13,10 @@ from pymongo import MongoClient
 dbclient = MongoClient('localhost', 27017)
 
 SMTPHOST = "localhost"
-SMTPPORT = 2407
+SMTPPORT = 25
 
 POP3HOST = SMTPHOST
-POP3PORT = 2408
+POP3PORT = 110
 
 loggedEmail = ""
 loggedPassword = ""
