@@ -8,9 +8,12 @@ import socket
 import os
 import re
 import time
+import pprint
+from pymongo import MongoClient
 
 sleep_time = 0
 
+dbclient = MongoClient('localhost', 27017)
 
 HOST = ""
 PORT = 110
@@ -45,7 +48,7 @@ def receiveMultiLine(conn):
 
 def pop3RequestHandler(conn, addr):
 	print("Connected by", addr)
-	
+
 	# Connect phase
 	conn.send("+OK POP3 server ready\r\n".encode())
 
@@ -53,14 +56,17 @@ def pop3RequestHandler(conn, addr):
 	userPending = True
 
 	while userPending:
-		expectingUSER = receiveOneLine(conn)
-		# print("expectingUSER", expectingUSER)
-		matched = userMatch.match(expectingUSER)
-		if matched:
-			conn.send("+OK User accepted\r\n".encode())
+		try:
+			expectingUSER = conn.recv(1024).strip()
 			user = expectingUSER.split(" ")[1].rstrip()
-			userPending = False
-		else:
+			matched = dbclient.mailServer.users.find_one({"user":user})
+			if (matched != None):
+				conn.send("OK User accepted\r\n".encode())
+				# user = expectingUSER.split(" ")[1].rstrip()
+				userPending = False
+			else:
+				conn.send("ERROR\r\n".encode())
+		except:
 			conn.send("-ERR\r\n".encode())
 
 
@@ -68,19 +74,23 @@ def pop3RequestHandler(conn, addr):
 	passPending = True
 
 	while passPending:
-		expectingPASS = receiveOneLine(conn)
-		matched = passMatch.match(expectingPASS)
-		if matched:
-			conn.send("+OK Pass accepted\r\n".encode())
+		try:
+			expectingPASS = conn.recv(1024).strip()
 			password = expectingPASS.split(" ")[1].rstrip()
-			passPending = False
-		else:
+			matched = dbclient.mailServer.users.find_one({"user":user})
+			if (matched['password'] == password):
+				conn.send("OK Pass accepted\r\n".encode())
+				# password = expectingPASS.split(" ")[1].rstrip()
+				passPending = False
+			else:
+				conn.send("ERROR\r\n".encode())
+		except:
 			conn.send("-ERR\r\n".encode())
 
 	# Program phase
 
-	while True:
-		expectingCommand = receiveOneLine(conn)
+	while ((passPending == False) and (userPending == False)):
+		expectingCommand = conn.recv(1024).strip()
 		if quitMatch.match(expectingCommand):
 			conn.send("+OK POP3 server signing off\r\n".encode())
 			conn.close()
