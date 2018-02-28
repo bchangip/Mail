@@ -10,6 +10,7 @@ import re
 
 HOST = ""
 PORT = 2407
+DOMAIN = "uvg.mail"
 
 heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
 mailFromMatch = re.compile('(^MAIL FROM: <[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
@@ -113,14 +114,21 @@ def mailRequestHandler(conn, addr):
 
 	print("Domain: "+sourceDomain+"\nFrom: "+mailFrom+"\nTo: "+str(recipients)+"\nData: "+content)
 
-	recipients = list(filter(lambda x: x.split('@')[1] != "uvg.mail", recipients))
-	serverNames = set(map(lambda x: x.split('@')[1], recipients))
+	foreignRecipients = list(filter(lambda x: x.split('@')[1] != "uvg.mail", recipients))
+	localRecipients = list(filter(lambda x: x.split('@')[1] == "uvg.mail", recipients))
+
+	# Accounts to forward
+	print("foreignRecipients", foreignRecipients)
+
+	# Accounts to save locally
+	print("localRecipients", localRecipients)
+	serverNames = set(map(lambda x: x.split('@')[1], foreignRecipients))
 	print("serverNames", serverNames)
 
 
 	for serverName in serverNames:
 		serverIP = socket.gethostbyname(serverName)
-		ownAccounts = list(filter(lambda x: x.split('@')[1] == serverName, recipients))
+		ownAccounts = list(filter(lambda x: x.split('@')[1] == serverName, foreignRecipients))
 		print("serverName", serverName)
 		print("serverIP", serverIP)
 		print("ownAccounts", ownAccounts)
