@@ -9,7 +9,7 @@ import os
 import re
 import time
 
-sleep_time = 0.3
+sleep_time = 0
 
 
 HOST = ""
@@ -47,8 +47,6 @@ def pop3RequestHandler(conn, addr):
 	
 	# Connect phase
 	conn.send("+OK POP3 server ready\r\n".encode())
-
-	# print("MultiLine", receiveMultiLine(conn))
 
 	# USER phase
 	userPending = True

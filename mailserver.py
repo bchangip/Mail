@@ -77,7 +77,7 @@ def mailRequestHandler(conn, addr):
 		matched = rcptToMatch.match(expectingRCPTTO)
 		if matched:
 			conn.send("250 Ok\r\n".encode())
-			recipients.append(expectingRCPTTO.split(":")[1][1:].rstrip())
+			recipients.append(expectingRCPTTO.split(":")[1][1:].rstrip()[1:-1])
 			expectingRCPTTO = receiveOneLine(conn)
 			if (rcptToMatch.match(expectingRCPTTO) == None):
 				if (dataMatch.match(expectingRCPTTO) != None):
@@ -109,9 +109,69 @@ def mailRequestHandler(conn, addr):
 
 	conn.close()
 
-	data = "".join(dataBuffer)
+	content = "".join(dataBuffer)
 
-	print("Domain: "+sourceDomain+"\nFrom: "+mailFrom+"\nTo: "+str(recipients)+"\nData: "+data)
+	print("Domain: "+sourceDomain+"\nFrom: "+mailFrom+"\nTo: "+str(recipients)+"\nData: "+content)
+
+	recipients = list(filter(lambda x: x.split('@')[1] != "uvg.mail", recipients))
+	serverNames = set(map(lambda x: x.split('@')[1], recipients))
+	print("serverNames", serverNames)
+
+
+	for serverName in serverNames:
+		serverIP = socket.gethostbyname(serverName)
+		ownAccounts = list(filter(lambda x: x.split('@')[1] == serverName, recipients))
+		print("serverName", serverName)
+		print("serverIP", serverIP)
+		print("ownAccounts", ownAccounts)
+
+		try:
+				smtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				smtpSocket.connect((serverIP, 25))
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+				smtpSocket.sendall(bytes(str("HELO "+sourceDomain).encode()))
+				time.sleep(sleep_time)
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+
+				#MAIL FROM
+				command = "MAIL FROM: <" + mailFrom + ">"
+				# print (command)
+				smtpSocket.sendall(command.encode())
+				time.sleep(sleep_time)
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+				for mail in ownAccounts:
+					print (mail)
+					smtpSocket.sendall(("RCPT TO: <" + mail + ">").encode())
+					time.sleep(sleep_time)
+					data = smtpSocket.recv(1024)
+					print('Received', repr(data))
+				#DATA
+				smtpSocket.sendall(b'DATA')
+				time.sleep(sleep_time)
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+				# Send message.
+				smtpSocket.sendall(content.encode())
+				time.sleep(sleep_time)
+				#. (Enviar .)
+				smtpSocket.sendall(b'.')
+				time.sleep(sleep_time)
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+				#QUIT
+				smtpSocket.sendall(b'QUIT')
+				time.sleep(sleep_time)
+				data = smtpSocket.recv(1024)
+				print('Received', repr(data))
+				smtpSocket.close() # Este close no se si va a ser necesario, porque el server cierra la conexion
+		except:
+			smtpSocket.close()
+
+
+
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
