@@ -7,12 +7,15 @@ import thread
 import socket
 import os
 import re
+from pymongo import MongoClient
+
+dbclient = MongoClient('localhost', 27017)
 
 HOST = ""
 PORT = 25
 DOMAIN = "uvg.mail"
 
-heloMatch = re.compile('^EHLO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
+heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
 mailFromMatch = re.compile('(^MAIL FROM:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 rcptToMatch = re.compile('(^RCPT TO:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 dataMatch = re.compile('^DATA$')
@@ -44,7 +47,7 @@ def mailRequestHandler(conn, addr):
 	while heloPending:
 		# expectingHELO = conn.recv(1024).strip()
 		expectingHELO = receiveOneLine(conn)
-		print("expectingHELO", expectingHELO)
+		# print("expectingHELO", expectingHELO)
 		matched = heloMatch.match(expectingHELO)
 		if matched:
 			conn.send("250 smtp.chan.com, I am glad to meet you\r\n".encode())
@@ -58,10 +61,10 @@ def mailRequestHandler(conn, addr):
 
 	while mailFromPending:
 		expectingMAILFROM = receiveOneLine(conn)
-		print("expectingMAILFROM", expectingMAILFROM)
+		# print("expectingMAILFROM", expectingMAILFROM)
 		matched = mailFromMatch.match(expectingMAILFROM)
 		if matched:
-			print("Correct")
+			# print("Correct")
 			conn.send("250 Ok\r\n".encode())
 			mailFrom = expectingMAILFROM.split(":")[1].rstrip()
 			mailFromPending = False
@@ -111,57 +114,60 @@ def mailRequestHandler(conn, addr):
 
 	conn.close()
 
-	content = "".join(dataBuffer)
+	content = "\n".join(dataBuffer)
 
 	print("Domain: "+sourceDomain+"\nFrom: "+mailFrom+"\nTo: "+str(recipients)+"\nData: "+content)
 
 	foreignRecipients = list(filter(lambda x: x.split('@')[1] != "uvg.mail", recipients))
 	localRecipients = list(filter(lambda x: x.split('@')[1] == "uvg.mail", recipients))
+	localRecipients = list(map(lambda x: x.split('@')[0], localRecipients))
 
 	# Accounts to forward
-	print("foreignRecipients", foreignRecipients)
+	# print("foreignRecipients", foreignRecipients)
 
 	# Accounts to save locally
-	print("localRecipients", localRecipients)
+	# print("localRecipients", localRecipients)
+	for localRecipient in localRecipients:
+		dbclient.mailServer.emails.insert({"RCPTTO": localRecipient, "DATA": content})
 	serverNames = set(map(lambda x: x.split('@')[1], foreignRecipients))
-	print("serverNames", serverNames)
+	# print("serverNames", serverNames)
 
 
 	for serverName in serverNames:
 		serverIP = socket.gethostbyname(serverName)
 		ownAccounts = list(filter(lambda x: x.split('@')[1] == serverName, foreignRecipients))
-		print("serverName", serverName)
-		print("serverIP", serverIP)
-		print("ownAccounts", ownAccounts)
+		# print("serverName", serverName)
+		# print("serverIP", serverIP)
+		# print("ownAccounts", ownAccounts)
 
 		try:
 				smtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				smtpSocket.connect((serverIP, 25))
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 				smtpSocket.sendall(bytes(str("HELO "+sourceDomain+"\r\n").encode()))
 				time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 
 				#MAIL FROM
 				command = "MAIL FROM: <" + mailFrom + ">\r\n"
-				# print (command)
+				# # print (command)
 				smtpSocket.sendall(bytes(command.encode()))
 				time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 				for mail in ownAccounts:
-					print (mail)
+					# print (mail)
 					smtpSocket.sendall(bytes(("RCPT TO: <" + mail + ">\r\n").encode()))
 					time.sleep(sleep_time)
 					data = receiveOneLine(smtpSocket)
-					print('Received', repr(data))
+					# print('Received', repr(data))
 				#DATA
 				smtpSocket.sendall(b'DATA\r\n')
 				time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 				# Send message.
 				smtpSocket.sendall(bytes((content+"\r\n").encode()))
 				time.sleep(sleep_time)
@@ -169,12 +175,12 @@ def mailRequestHandler(conn, addr):
 				smtpSocket.sendall(bytes(".\r\n".encode()))
 				time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 				#QUIT
 				smtpSocket.sendall(bytes("QUIT\r\n".encode()))
 				time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
-				print('Received', repr(data))
+				# print('Received', repr(data))
 				smtpSocket.close() # Este close no se si va a ser necesario, porque el server cierra la conexion
 		except:
 			smtpSocket.close()

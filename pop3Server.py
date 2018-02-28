@@ -70,9 +70,9 @@ def pop3RequestHandler(conn, addr):
 
 	while passPending:
 		expectingPASS = receiveOneLine(conn)
-		print("expectingPASS", expectingPASS)
+		# print("expectingPASS", expectingPASS)
 		if passMatch.match(expectingPASS):
-			print("Correct")
+			# print("Correct")
 			conn.send(bytes("+OK Pass accepted\r\n".encode()))
 			passPending = False
 			# password = expectingPASS.split(" ")[1].rstrip()
@@ -95,30 +95,51 @@ def pop3RequestHandler(conn, addr):
 			conn.close()
 			break
 		elif statMatch.match(expectingCommand):
-			conn.send(bytes("+OK 5 165\r\n".encode()))
+			# print("STAT on user", user)
+			mailbox = dbclient.mailServer.emails.find({"RCPTTO": user})
+			emailCount = mailbox.count()
+			mailboxSize = sum(map(lambda x: len(x["DATA"]), mailbox))
+
+			conn.send(bytes("+OK "+str(emailCount)+" "+str(mailboxSize)+"\r\n".encode()))
 		elif listMatch.match(expectingCommand):
-			exampleIDsList = [1, 2, 3, 4, 5]
-			response = "+OK " + str(len(exampleIDsList)) + " messages\r\n"
+			# print("ON LIST")
+			mailbox = list(dbclient.mailServer.emails.find({"RCPTTO": user}))
+			emailCount = len(mailbox)
+			mailboxSize = sum(map(lambda x: len(x["DATA"]), mailbox))
+			response = "+OK " + str(emailCount) + " messages ("+str(mailboxSize)+" octets)\r\n"
+			currentList = {}
+			for mail in list(enumerate(mailbox)):
+				currentList[str(int(mail[0])+1)] = mail[1]
+			currentListIDs = list(currentList.keys())
 			conn.send(response.encode())
-			for id in exampleIDsList:
-				# time.sleep(sleep_time)
-				conn.send(bytes(str(id)+" 33\r\n"))
-			print("Finished sending ids")
+			# print("currentList", currentList)
+			# print("currentListIDs", currentListIDs)
+			for id in currentListIDs:
+				# print("id in currentListIDs", id)
+				conn.send(bytes(str(id)+" "+str(len(currentList[id]["DATA"]))+"\r\n"))
+			# print("Finished sending ids")
 			conn.send(bytes(".\r\n"))
-			# Return email IDs from mongo
 		elif retrMatch.match(expectingCommand):
 			emailID = expectingCommand.split(" ")[1].rstrip()
-
-			exampleResultEmail = { "MAILFROM" : "mschang@gmail.com", "RCPTTO" : "xchangip@gmail.com", "DATA" : "Subject: Prueba\n\nHola, este es un correo de prueba" }
-			response = bytes((exampleResultEmail['DATA'] + "\r\n").encode())
-			conn.send(bytes("+OK 33 octets\r\n"))
-			# conn.send(bytes("HOLA\r\n".encode()))
-			conn.send(response)
-			conn.send(bytes(".\r\n"))
-			# Return single email from mongo
+			# print("currentList on retr", currentList)
+			if emailID in currentList:
+				# print("Retrieving id", emailID)
+				conn.send(bytes("+OK "+str(len(currentList[emailID]["DATA"]))+" octets\r\n"))
+				# conn.send(bytes("HOLA\r\n".encode()))
+				conn.send(bytes((currentList[emailID]["DATA"]+"\r\n").encode()))
+				conn.send(bytes(".\r\n"))
+				# Return single email from mongo
+			else:
+				conn.send(bytes("-ERR no such message\r\n"))
 		elif deleMatch.match(expectingCommand):
-			conn.send("+OK\r\n".encode())
 			emailID = expectingCommand.split(" ")[1].rstrip()
+
+			if emailID in currentList:
+				dbclient.mailServer.emails.remove(currentList[emailID]["_id"])
+				del currentList[emailID]
+				conn.send("+OK message "+str(emailID)+" deleted\r\n".encode())
+			else:
+				conn.send(bytes("-ERR no such message\r\n"))
 			# Delete single email from mongo
 		else:
 			conn.send("-ERR\r\n".encode())

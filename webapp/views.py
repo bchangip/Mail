@@ -54,12 +54,14 @@ def inboxPage(request):
 	mailIndices = receiveMultiLine(pop3Socket)[1:]
 	print("mailIndices", mailIndices)
 	for index in mailIndices:
+		index = index.split(" ")[0]
 		pop3Socket.sendall(bytes(("RETR "+str(index)+"\r\n").encode()))
 		mailContent = receiveMultiLine(pop3Socket)
 		#Save message to local mongo
 		pop3Socket.sendall(bytes(("DELE "+str(index)+"\r\n").encode()))
 		receiveOneLine(pop3Socket)
 		print("mailContent", mailContent)
+		dbclient.mailClient.emails.insert({"RCPTTO": loggedEmail, "DATA": mailContent[1]})
 
 	pop3Socket.sendall(bytes("QUIT\r\n".encode()))
 
@@ -105,7 +107,7 @@ def createEmailPage(request):
 			print('Received', repr(data))
 
 			#MAIL FROM
-			command = "MAIL FROM: <" + loggedEmail + ">\r\n"
+			command = "MAIL FROM:<" + loggedEmail + ">\r\n"
 			# print (command)
 			smtpSocket.sendall(bytes(command.encode()))
 			# time.sleep(sleep_time)
@@ -115,7 +117,7 @@ def createEmailPage(request):
 			# print (newEmail.cleaned_data['toEmail'].split(','))
 			for mail in newEmail.cleaned_data['toEmail'].split(','):
 				print (mail)
-				smtpSocket.sendall(("RCPT TO: <" + mail + ">\r\n").encode())
+				smtpSocket.sendall(("RCPT TO:<" + mail + ">\r\n").encode())
 				# time.sleep(sleep_time)
 				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
