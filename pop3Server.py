@@ -26,11 +26,30 @@ deleMatch = re.compile('^DELE \d*$')
 quitMatch = re.compile('^QUIT$')
 
 
+# userMatch = re.compile('^user \S*$')
+# passMatch = re.compile('^pass \S*$')
+# listMatch = re.compile('^list$')
+# retrMatch = re.compile('^retr \d*$')
+# deleMatch = re.compile('^dele \d*$')
+# quitMatch = re.compile('^quit$')
+
+def receiveOneLine(conn):
+	message = ""
+	while "\r\n" not in message:
+		message += conn.recv(1024).decode()
+	return message.strip()
+
+def receiveMultiLine(conn):
+	message = ""
+	while "\r\n.\r\n" not in message:
+		message += conn.recv(1024).decode()
+	return message.split("\r\n")[:-2]
+
 def pop3RequestHandler(conn, addr):
 	print("Connected by", addr)
 
 	# Connect phase
-	conn.send("OK POP3 server ready\r\n".encode())
+	conn.send("+OK POP3 server ready\r\n".encode())
 
 	# USER phase
 	userPending = True
@@ -47,7 +66,7 @@ def pop3RequestHandler(conn, addr):
 			else:
 				conn.send("ERROR\r\n".encode())
 		except:
-			conn.send("ERROR\r\n".encode())
+			conn.send("-ERR\r\n".encode())
 
 
 	# Pass phase
@@ -65,25 +84,25 @@ def pop3RequestHandler(conn, addr):
 			else:
 				conn.send("ERROR\r\n".encode())
 		except:
-			conn.send("ERROR\r\n".encode())
+			conn.send("-ERR\r\n".encode())
 
 	# Program phase
 
 	while ((passPending == False) and (userPending == False)):
 		expectingCommand = conn.recv(1024).strip()
 		if quitMatch.match(expectingCommand):
-			conn.send("OK POP3 server signing off\r\n".encode())
+			conn.send("+OK POP3 server signing off\r\n".encode())
 			conn.close()
 			break
 		elif listMatch.match(expectingCommand):
 			exampleIDsList = [1, 2, 3, 4, 5]
-			response = "OK " + str(len(exampleIDsList)) + " messages\r\n"
+			response = "+OK " + str(len(exampleIDsList)) + " messages\r\n"
 			conn.send(response.encode())
 			for id in exampleIDsList:
-				time.sleep(sleep_time)
+				# time.sleep(sleep_time)
 				conn.send(bytes(str(id)+"\r\n"))
 			print("Finished sending ids")
-			conn.send(b'.\r\n')
+			conn.send(bytes(".\r\n"))
 			# Return email IDs from mongo
 		elif retrMatch.match(expectingCommand):
 			emailID = expectingCommand.split(" ")[1].rstrip()
@@ -91,14 +110,14 @@ def pop3RequestHandler(conn, addr):
 			exampleResultEmail = { "MAILFROM" : "mschang@gmail.com", "RCPTTO" : "xchangip@gmail.com", "DATA" : "Hola, este es un correo de prueba" }
 			response = bytes((exampleResultEmail['DATA'] + "\r\n").encode())
 			conn.send(response)
-			conn.send(b'.\r\n')
+			conn.send(bytes(".\r\n"))
 			# Return single email from mongo
 		elif deleMatch.match(expectingCommand):
-			conn.send("DELETE SINGLE EMAIL\n".encode())
+			conn.send("DELETE SINGLE EMAIL\r\n".encode())
 			emailID = expectingCommand.split(" ")[1].rstrip()
 			# Delete single email from mongo
 		else:
-			conn.send("ERROR\r\n".encode())
+			conn.send("-ERR\r\n".encode())
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

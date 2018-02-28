@@ -8,12 +8,13 @@ import django.contrib.postgres.fields as postgresModule
 
 class Email(models.Model):
 	toEmail = models.CharField(max_length=4096)
+	subject = models.CharField(max_length=4096)
 	data = models.CharField(max_length=8192)
 
 class EmailForm(ModelForm):
 	class Meta:
 		model = Email
-		fields = ['toEmail', 'data']
+		fields = ['toEmail', 'subject', 'data']
 
 class User(models.Model):
 	email = models.CharField(max_length=100)
