@@ -15,7 +15,7 @@ HOST = ""
 PORT = 25
 DOMAIN = "uvg.mail"
 
-heloMatch = re.compile('^HELO [a-zA-Z0-9-]+(\.[a-zA-Z0-9-.]+)*$')
+heloMatch = re.compile('^HELO \S*$')
 mailFromMatch = re.compile('(^MAIL FROM:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 rcptToMatch = re.compile('(^RCPT TO:<[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+>$)')
 dataMatch = re.compile('^DATA$')
@@ -151,7 +151,7 @@ def mailRequestHandler(conn, addr):
 				# print('Received', repr(data))
 
 				#MAIL FROM
-				command = "MAIL FROM: <" + mailFrom + ">\r\n"
+				command = "MAIL FROM:<" + mailFrom + ">\r\n"
 				# # print (command)
 				smtpSocket.sendall(bytes(command.encode()))
 				time.sleep(sleep_time)
@@ -159,7 +159,7 @@ def mailRequestHandler(conn, addr):
 				# print('Received', repr(data))
 				for mail in ownAccounts:
 					# print (mail)
-					smtpSocket.sendall(bytes(("RCPT TO: <" + mail + ">\r\n").encode()))
+					smtpSocket.sendall(bytes(("RCPT TO:<" + mail + ">\r\n").encode()))
 					time.sleep(sleep_time)
 					data = receiveOneLine(smtpSocket)
 					# print('Received', repr(data))

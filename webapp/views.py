@@ -12,11 +12,18 @@ from pymongo import MongoClient
 
 dbclient = MongoClient('localhost', 27017)
 
+DOMAIN = "uvg.mail"
+# DOMAIN = "grupo2.com"
+
 SMTPHOST = "localhost"
+# SMTPHOST = "192.168.43.17"
 SMTPPORT = 25
+# SMTPPORT = 2407
+
 
 POP3HOST = SMTPHOST
 POP3PORT = 110
+# POP3PORT = 2000
 
 loggedEmail = ""
 loggedPassword = ""
@@ -32,6 +39,31 @@ def receiveMultiLine(conn):
 	while "\r\n.\r\n" not in message:
 		message += conn.recv(1024).decode()
 	return message.split("\r\n")[:-2]
+
+def parseData(data):
+	if "\n\n" in data:
+		parsed = {}
+		header, content = data.split("\n\n")
+		parsed["Content"] = content
+
+		headerInfo = header.split("\n")
+		headerInfo = map(
+			lambda x: x.split(": ") if ": " in x else ["Unknown", x],
+			headerInfo
+		)
+		for headerSingleInfo in headerInfo:
+			parsed[headerSingleInfo[0]] = headerSingleInfo[1]
+		return parsed
+
+
+	else:
+		return {
+			"Content": data,
+			"Subject": "--Header malformed",
+			"Date": "--Header malformed",
+			"From": "--Header malformed",
+			"To": "--Header malformed"
+		}
 
 def inboxPage(request):
 	global loggedEmail
@@ -57,15 +89,18 @@ def inboxPage(request):
 		index = index.split(" ")[0]
 		pop3Socket.sendall(bytes(("RETR "+str(index)+"\r\n").encode()))
 		mailContent = receiveMultiLine(pop3Socket)
+		print("mailContent", mailContent)
 		#Save message to local mongo
+		dbclient.mailClient.emails.insert({"RCPTTO": loggedEmail, "DATA": mailContent[1]})
 		pop3Socket.sendall(bytes(("DELE "+str(index)+"\r\n").encode()))
 		receiveOneLine(pop3Socket)
-		print("mailContent", mailContent)
-		dbclient.mailClient.emails.insert({"RCPTTO": loggedEmail, "DATA": mailContent[1]})
 
 	pop3Socket.sendall(bytes("QUIT\r\n".encode()))
 
-	localEmails = list(dbclient.mailClient.emails.find({"RCPTTO": loggedEmail}))
+	localEmails = list(map(
+		lambda x: parseData(x["DATA"]),
+		dbclient.mailClient.emails.find({"RCPTTO": loggedEmail})))
+
 	print("localEmails", localEmails)
 
 	return render(
@@ -95,6 +130,7 @@ def createEmailPage(request):
 		newEmail = EmailForm(request.POST)
 		if newEmail.is_valid():
 			print(newEmail.cleaned_data['toEmail'])
+			print(newEmail.cleaned_data['subject'])
 			print(newEmail.cleaned_data['data'])
 
 			smtpSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -107,8 +143,8 @@ def createEmailPage(request):
 			print('Received', repr(data))
 
 			#MAIL FROM
-			command = "MAIL FROM:<" + loggedEmail + ">\r\n"
-			# print (command)
+			command = "MAIL FROM:<" + loggedEmail + "@" + DOMAIN + ">\r\n"
+			print("mailFrom", command)
 			smtpSocket.sendall(bytes(command.encode()))
 			# time.sleep(sleep_time)
 			data = receiveOneLine(smtpSocket)
@@ -122,13 +158,15 @@ def createEmailPage(request):
 				data = receiveOneLine(smtpSocket)
 				print('Received', repr(data))
 			#DATA
+			subject = str(newEmail.cleaned_data['subject'])
 			msgData = str(newEmail.cleaned_data['data'])
 			smtpSocket.sendall(bytes("DATA\r\n".encode()))
 			# time.sleep(sleep_time)
 			data = receiveOneLine(smtpSocket)
 			print('Received', repr(data))
 			# Send message.
-			smtpSocket.sendall((msgData+"\r\n").encode())
+			data = "To: "+newEmail.cleaned_data['toEmail']+"\nFrom: "+loggedEmail+"\nSubject: "+subject+"\n\n"+msgData+"\r\n"
+			smtpSocket.sendall(data.encode())
 			# time.sleep(sleep_time)
 			#. (Enviar .)
 			smtpSocket.sendall(bytes("\r\n.\r\n".encode()))

@@ -15,11 +15,15 @@
 					<div class="card">
 						<div class="card-content" style="background-color: #c5ddc7">
 							<div class='row'>
-								<b>De:</b> {{ email.MAILFROM }}
+								<b>De:</b> {{ email.From }}
 								<br /><br />
-								<b>Para:</b> {{ email.RCPTTO }}
+								<b>Para:</b> {{ email.To }}
 								<br /><br />
-								{{ email.DATA }}
+								<b>Asunto:</b> {{ email.Subject }}
+								<br /><br />
+								<b>Fecha:</b> {{ email.Date }}
+								<br /><br />
+								{{ email.Content }}
 							</div>
 						</div>
 					</div>
